@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "Cool More Agent0",
+  "version": "1.0",
+  "author": "Cool More Agent0",
+  "description": "Automatically clicks +5 bonus buttons on Bing Rewards and closes the tab when done",
+  
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "scripting",
+    "storage",
+    "alarms",
+    "windows"
+  ],
+  
+  "host_permissions": [
+    "https://rewards.bing.com/*"
+  ],
+  
+  "action": {
+    "default_title": "Bing Rewards Auto Clicker",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["https://rewards.bing.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}
