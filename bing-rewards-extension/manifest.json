@@ -15,7 +15,9 @@
   ],
   
   "host_permissions": [
-    "https://rewards.bing.com/*"
+    "https://rewards.bing.com/*",
+    "https://*.bing.com/*",
+    "https://edge.microsoft.com/*"
   ],
   
   "action": {
@@ -40,7 +42,11 @@
   
   "content_scripts": [
     {
-      "matches": ["https://rewards.bing.com/*"],
+      "matches": [
+        "https://rewards.bing.com/*",
+        "https://www.bing.com/search*",
+        "https://edge.microsoft.com/search*"
+      ],
       "js": ["content.js"],
       "run_at": "document_end"
     }

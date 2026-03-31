@@ -5,28 +5,42 @@
 console.log("🔧 Agent0: Command & Control Service Worker Loaded");
 
 /**
- * HEARTBEAT / KEEP-ALIVE
- * Periodically pings the rewards tab to prevent browser throttling.
+ * MASTER TASK DRIVER
+ * Actively pings rewards tabs to perform tasks.
+ * This bypasses background throttling by using high-priority extension messaging.
  */
-let pulseInterval = null;
+let driverInterval = null;
 
-function startHeartbeat() {
-    if (pulseInterval) return;
-    pulseInterval = setInterval(async () => {
+function startTaskDriver() {
+    if (driverInterval) return;
+    
+    console.log("🚀 Starting Master Task Driver...");
+    driverInterval = setInterval(async () => {
+        // Find all rewards tabs
         const tabs = await chrome.tabs.query({ url: "*://rewards.bing.com/*" });
+        
         for (const tab of tabs) {
-            try {
+            // Only drive the 'earn' or 'dashboard' pages
+            if (tab.url.includes('/earn') || tab.url.includes('/dashboard')) {
+                try {
+                    // Send an active command to perform an atomic task step
+                    chrome.tabs.sendMessage(tab.id, { action: "performTaskPulse" }).catch(() => {});
+                } catch(e) {
+                    console.error("❌ Driver error for tab:", tab.id, e);
+                }
+            } else {
+                // Heartbeat only for other rewards pages to keep them alive
                 chrome.tabs.sendMessage(tab.id, { action: "heartbeat" }).catch(() => {});
-            } catch(e) {}
+            }
         }
-    }, 1500); // 1.5s pulse
+    }, 4000); // Pulse every 4 seconds
 }
 
-// Start immediately
-startHeartbeat();
+// Start driver immediately
+startTaskDriver();
 
 /**
- * Message Dispatcher
+ * MESSAGE DISPATCHER
  */
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   const windowId = sender.tab?.windowId;
@@ -34,6 +48,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   // ✅ Close Entire Window (Mission Complete)
   if (request.action === "closeWindow") {
+    console.log("🏁 Mission complete reported. Closing window...");
     setTimeout(() => {
         chrome.windows.remove(windowId).catch(() => {});
     }, 500);
@@ -42,29 +57,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // ✅ Close ONLY current tab (Redirect handling)
   if (request.action === "closeTab") {
+    console.log("🧼 Closing tab:", tabId);
     chrome.tabs.remove(tabId).catch(() => {});
     return true;
   }
 
-  // ✅ Update Clicks (For UI progress if needed)
+  // ✅ Update Clicks
   if (request.action === "updateClicks") {
-    console.log(`📈 Counter Update: ${request.count} clicks`);
+    console.log(`📈 Counter Update: ${request.count} clicks in tab ${tabId}`);
     return true;
+  }
+
+  // ✅ Task Complete Notification
+  if (request.action === "taskComplete") {
+      console.log(`✅ Tab ${tabId} reported task completion.`);
+      return true;
   }
 });
 
-// Periodic "Re-Scan" trigger if the tab seems idle
-setInterval(async () => {
-    const tabs = await chrome.tabs.query({ url: "*://rewards.bing.com/earn*" });
-    for (const tab of tabs) {
-        // Send a "Are you still working?" probe
-        chrome.tabs.sendMessage(tab.id, { action: "bgProbe" }).then(response => {
-           if (response && response.idleTime > 20000) {
-              console.log("⚠️ Tab seems idle in background. Triggering nudge...");
-              chrome.tabs.sendMessage(tab.id, { action: "nudge" }).catch(() => {});
-           }
-        }).catch(() => {});
+// Listener for tab updates - re-initialize if needed
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && tab.url?.includes('rewards.bing.com')) {
+        console.log(`📡 Tab updated: ${tab.url}. Pulsing...`);
+        chrome.tabs.sendMessage(tabId, { action: "nudge" }).catch(() => {});
     }
-}, 10000); // Every 10s check
+});
 
-console.log("✅ Agent0: Background C2 established.");
+console.log("✅ Agent0: Background C2 Pulse established.");
